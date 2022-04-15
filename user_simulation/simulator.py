@@ -10,7 +10,6 @@ def restart():
     table = select_initial_data(table)
     table = process_rdbms_table(table)
     overwrite_requests_rdbms_table(table)
-
     print(table)
 
 
