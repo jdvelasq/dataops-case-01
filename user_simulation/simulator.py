@@ -1,5 +1,4 @@
 import os
-import random
 from datetime import datetime
 
 import pandas as pd
@@ -173,7 +172,10 @@ def load_rdbms_requests_table():
 
 def overwrite_rdbms_requests_table(data):
     module_path = os.path.dirname(__file__)
-    filename = os.path.join(module_path, "../operational_rdbms/requests_table.csv")
+    folder_path = os.path.join(module_path, "../operational_rdbms")
+    if not os.path.exists(folder_path):
+        os.makedirs(folder_path)
+    filename = os.path.join(folder_path, "requests_table.csv")
     data.to_csv(filename, sep=",", index=False)
 
 
