@@ -1,5 +1,9 @@
 advance:
+ifdef n_weeks
+	python3 advance.py $(n_weeks)
+else
 	python3 advance.py
+endif
 
 
 restart:

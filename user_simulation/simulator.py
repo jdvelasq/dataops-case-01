@@ -5,19 +5,21 @@ from datetime import datetime
 import pandas as pd
 
 
-def process_next_week():
+def process_next_weeks(n_weeks):
 
     rdbms_requests_table = load_rdbms_requests_table()
     historical_requests_table = load_historial_requests_table()
     last_procesed_date = rdbms_requests_table.open_date.tail(1).values[0]
 
-    batch_data = historical_requests_table[
-        historical_requests_table.open_date > last_procesed_date
-    ]
-    batch_data = select_next_week(batch_data)
-    batch_data = assign_last_modified_field(batch_data)
+    for _ in range(n_weeks):
+        batch_data = historical_requests_table[
+            historical_requests_table.open_date > last_procesed_date
+        ]
+        batch_data = select_next_week(batch_data)
+        batch_data = assign_last_modified_field(batch_data)
+        rdbms_requests_table = pd.concat([rdbms_requests_table, batch_data])
+        last_procesed_date = rdbms_requests_table.open_date.tail(1).values[0]
 
-    rdbms_requests_table = pd.concat([rdbms_requests_table, batch_data])
     rdbms_requests_table = process_rdbms_request_table(rdbms_requests_table)
     overwrite_rdbms_requests_table(rdbms_requests_table)
 
