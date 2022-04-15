@@ -37,9 +37,11 @@ def select_next_week(batch_data):
     return batch_data
 
 
-def restart():
+def restart(restart_date="2017-09-14"):
     historial_requests_table = load_historial_requests_table()
-    requests_table = select_initial_request_table(historial_requests_table)
+    requests_table = select_initial_request_table(
+        historial_requests_table, restart_date
+    )
     requests_table = process_rdbms_request_table(requests_table)
     overwrite_rdbms_requests_table(requests_table)
     print(requests_table)
@@ -146,10 +148,10 @@ def overwrite_rdbms_requests_table(data):
     data.to_csv(filename, sep=",", index=False)
 
 
-def select_initial_request_table(historical_request_table):
+def select_initial_request_table(historical_request_table, restart_date):
     historical_request_table = historical_request_table.copy()
     rdbms_request_table = historical_request_table[
-        historical_request_table.open_date <= "2017-09-14"
+        historical_request_table.open_date <= restart_date
     ]
     rdbms_request_table = assign_last_modified_field(rdbms_request_table)
     return rdbms_request_table
