@@ -5,15 +5,67 @@ from datetime import datetime
 import pandas as pd
 
 
+def process_next_week():
+
+    rdbms_requests_table = load_rdbms_requests_table()
+    historical_requests_table = load_historial_requests_table()
+    last_procesed_date = rdbms_requests_table.open_date.tail(1).values[0]
+
+    batch_data = historical_requests_table[
+        historical_requests_table.open_date > last_procesed_date
+    ]
+    batch_data = select_next_week(batch_data)
+    batch_data = assign_last_modified_field(batch_data)
+
+    rdbms_requests_table = pd.concat([rdbms_requests_table, batch_data])
+    rdbms_requests_table = process_rdbms_request_table(rdbms_requests_table)
+    overwrite_rdbms_requests_table(rdbms_requests_table)
+
+    print(rdbms_requests_table.loc[batch_data.index, :])
+
+
+def select_next_week(batch_data):
+    batch_data = batch_data.copy()
+    current_date = batch_data.open_date.head(1).values[0]
+    next_date = pd.to_datetime(current_date) + pd.Timedelta(days=7)
+    next_day = next_date.strftime("%A").lower()
+    next_date = next_date.strftime("%Y-%m-%d")
+
+    while next_day != "monday":
+        next_date = compute_next_day(next_date)
+        next_day = pd.to_datetime(next_date).strftime("%A").lower()
+
+    batch_data = batch_data[batch_data.open_date < next_date]
+    return batch_data
+
+
+def select_next_week_(batch_data):
+    batch_data = batch_data.copy()
+    init_index = batch_data.index[0]
+    end_index = init_index
+    is_first_monday = True
+    print(init_index)
+    for index in batch_data.index:
+        if batch_data.open_day_name[index] == "monday":
+            if is_first_monday is True:
+                is_first_monday = False
+            else:
+                break
+        end_index = index
+    batch_data = batch_data.loc[init_index:end_index, :]
+    print(end_index)
+    return batch_data
+
+
 def restart():
-    table = load_historial_requests_table()
-    table = select_initial_data(table)
-    table = process_rdbms_table(table)
-    overwrite_requests_rdbms_table(table)
-    print(table)
+    historial_requests_table = load_historial_requests_table()
+    requests_table = select_initial_request_table(historial_requests_table)
+    requests_table = process_rdbms_request_table(requests_table)
+    overwrite_rdbms_requests_table(requests_table)
+    print(requests_table)
 
 
-def process_rdbms_table(table):
+def process_rdbms_request_table(table):
     current_date = get_init_business_date(table)
     last_date = table.open_date.tail(1).values[0]
     while current_date <= last_date:
@@ -99,31 +151,34 @@ def compute_next_day(date):
     return date
 
 
-def load_requests_rdbms_table():
+def load_rdbms_requests_table():
     module_path = os.path.dirname(__file__)
-    filename = os.path.join(
-        module_path, "../operational_rdbms/requests_rdbms_table.csv"
-    )
+    filename = os.path.join(module_path, "../operational_rdbms/requests_table.csv")
     if not os.path.exists(filename):
         raise FileNotFoundError(f"File {filename} not found")
     data = pd.read_csv(filename, sep=",")
     return data
 
 
-def overwrite_requests_rdbms_table(data):
+def overwrite_rdbms_requests_table(data):
     module_path = os.path.dirname(__file__)
-    filename = os.path.join(
-        module_path, "../operational_rdbms/requests_rdbms_table.csv"
-    )
+    filename = os.path.join(module_path, "../operational_rdbms/requests_table.csv")
     data.to_csv(filename, sep=",", index=False)
 
 
-def select_initial_data(data):
-    data = data.copy()
-    data = data[data.open_date <= "2017-09-14"]
+def select_initial_request_table(historical_request_table):
+    historical_request_table = historical_request_table.copy()
+    rdbms_request_table = historical_request_table[
+        historical_request_table.open_date <= "2017-09-14"
+    ]
+    rdbms_request_table = assign_last_modified_field(rdbms_request_table)
+    return rdbms_request_table
+
+
+def assign_last_modified_field(table):
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
-    data = data.assign(last_modified=now)
-    return data
+    table = table.assign(last_modified=now)
+    return table
 
 
 def load_historial_requests_table():
