@@ -4,6 +4,12 @@ from datetime import datetime
 
 import pandas as pd
 
+# -----------------------------------------------------------------------------
+# parametros de la simulación
+assign_rate_per_person = 100
+in_progress_rate_per_person = 15
+team_size = 8
+
 
 def process_next_weeks(n_weeks):
     for _ in range(n_weeks):
@@ -51,45 +57,67 @@ def restart(restart_date="2017-09-14"):
 def process_rdbms_request_table(table):
     current_date = get_init_business_date(table)
     last_date = table.open_date.tail(1).values[0]
+    daily_assign_capacity, max_in_progress_capacity = compute_team_capacity(table)
     while current_date <= last_date:
-        table = process_current_date(table, current_date)
+        table = process_current_date(
+            table, current_date, daily_assign_capacity, max_in_progress_capacity
+        )
         current_date = compute_next_day(current_date)
     return table
 
 
-def process_current_date(table, current_date):
+def compute_team_capacity(table):
+    global team_size
+    global in_progress_rate_per_person
+    global assign_rate_per_person
+    assign_team = 1
+    # num_open_tasks = len(table[table.status == "open"])
+    # assign_team = max(1, int(10 * num_open_tasks / assign_rate_per_person) / 10)
+    # assign_team = max(1, assign_team)
+    in_progress_team = team_size - assign_team
+    daily_assign_capacity = int(assign_rate_per_person * assign_team)
+    max_in_progress_capacity = int(in_progress_team * in_progress_rate_per_person)
+
+    return daily_assign_capacity, max_in_progress_capacity
+
+
+def process_current_date(
+    table, current_date, daily_assign_capacity, max_in_progress_capacity
+):
 
     batch_data = table[table.status != "closed"].copy()
     batch_data = batch_data[batch_data.open_date <= current_date]
 
-    daily_assign_capacity = random.randint(int(80), int(100))
-    max_in_progress_capacity = random.randint(8 * int(80), 8 * int(100))
+    # daily_assign_capacity = random.randint(int(80), int(100))
+    # max_in_progress_capacity = random.randint(8 * int(80), 8 * int(100))
 
     #
     # open ---> assigned (current day)
     #
-    open_tasks = batch_data[batch_data.status == "open"]
-    n = min(daily_assign_capacity, len(open_tasks))
-    indexes = open_tasks.index.values[:n]
+    open_requests = batch_data[batch_data.status == "open"]
+    n = min(daily_assign_capacity, len(open_requests))
+    indexes = open_requests.index.values[:n]
     batch_data.loc[indexes, "status"] = "assigned"
     batch_data.loc[indexes, "assigned_date"] = current_date
 
     #
     # in progress ---> closed (current day)
     #
-    in_progress_tasks = batch_data[batch_data.status == "in progress"]
-    batch_data.loc[in_progress_tasks.index, "age"] -= 1
+    in_progress_requests = batch_data[batch_data.status == "in progress"]
+    batch_data.loc[in_progress_requests.index, "age"] -= 1
     batch_data.loc[batch_data.age == 0, "status"] = "closed"
     batch_data.loc[batch_data.age == 0, "closed_date"] = current_date
 
     #
     # assigned ---> in progress (current day)
     #
-    in_progress_tasks = batch_data[batch_data.status == "in progress"]
-    n = min(max_in_progress_capacity - len(in_progress_tasks), len(in_progress_tasks))
-    assigned_tasks = batch_data[batch_data.status == "assigned"]
-    n = max(n, len(assigned_tasks))
-    indexes = assigned_tasks.index.values[:n]
+    in_progress_requests = batch_data[batch_data.status == "in progress"]
+    n = min(
+        max_in_progress_capacity - len(in_progress_requests), len(in_progress_requests)
+    )
+    assigned_requests = batch_data[batch_data.status == "assigned"]
+    n = max(n, len(assigned_requests))
+    indexes = assigned_requests.index.values[:n]
     batch_data.loc[indexes, "status"] = "in progress"
     batch_data.loc[indexes, "in_progress_date"] = current_date
 
