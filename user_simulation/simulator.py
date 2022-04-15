@@ -30,11 +30,9 @@ def select_next_week(batch_data):
     next_date = pd.to_datetime(current_date) + pd.Timedelta(days=7)
     next_day = next_date.strftime("%A").lower()
     next_date = next_date.strftime("%Y-%m-%d")
-
     while next_day != "monday":
         next_date = compute_next_day(next_date)
         next_day = pd.to_datetime(next_date).strftime("%A").lower()
-
     batch_data = batch_data[batch_data.open_date < next_date]
     return batch_data
 
