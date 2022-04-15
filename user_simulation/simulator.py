@@ -37,24 +37,6 @@ def select_next_week(batch_data):
     return batch_data
 
 
-def select_next_week_(batch_data):
-    batch_data = batch_data.copy()
-    init_index = batch_data.index[0]
-    end_index = init_index
-    is_first_monday = True
-    print(init_index)
-    for index in batch_data.index:
-        if batch_data.open_day_name[index] == "monday":
-            if is_first_monday is True:
-                is_first_monday = False
-            else:
-                break
-        end_index = index
-    batch_data = batch_data.loc[init_index:end_index, :]
-    print(end_index)
-    return batch_data
-
-
 def restart():
     historial_requests_table = load_historial_requests_table()
     requests_table = select_initial_request_table(historial_requests_table)
