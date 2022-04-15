@@ -6,27 +6,23 @@ import pandas as pd
 
 
 def process_next_weeks(n_weeks):
+    for _ in range(n_weeks):
+        process_next_week()
 
+
+def process_next_week():
     rdbms_requests_table = load_rdbms_requests_table()
     historical_requests_table = load_historial_requests_table()
     last_procesed_date = rdbms_requests_table.open_date.tail(1).values[0]
-
-    batches = []
-    for _ in range(n_weeks):
-        batch = historical_requests_table[
-            historical_requests_table.open_date > last_procesed_date
-        ]
-        batch = select_next_week(batch)
-        batch = assign_last_modified_field(batch)
-        batches.append(batch)
-        last_procesed_date = batch.open_date.tail(1).values[0]
-
-    batches = pd.concat(batches)
-    rdbms_requests_table = pd.concat([rdbms_requests_table, batches])
+    batch = historical_requests_table[
+        historical_requests_table.open_date > last_procesed_date
+    ]
+    batch = select_next_week(batch)
+    batch = assign_last_modified_field(batch)
+    rdbms_requests_table = pd.concat([rdbms_requests_table, batch])
     rdbms_requests_table = process_rdbms_request_table(rdbms_requests_table)
     overwrite_rdbms_requests_table(rdbms_requests_table)
-
-    print(rdbms_requests_table.loc[batches.index, :])
+    print(rdbms_requests_table.loc[batch.index, :])
 
 
 def select_next_week(batch_data):
